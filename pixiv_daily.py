@@ -1,8 +1,3 @@
-#-*- coding = utf-8 -*-
-#@Time : 2020/10/14 22:52
-#@File : pixiv_daily.py
-#@Software : PyCharm
-
 from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -38,7 +33,7 @@ class pixiv_infos:
 
         #打开网页
         self.browser.get(self.url)
-        self.browser.implicitly_wait(10)
+        self.browser.implicitly_wait(30)
 
         #输入账号
         self.browser.find_element_by_xpath('//*[@id="LoginComponent"]/form/div[1]/div[1]/input').send_keys(username)
@@ -47,7 +42,7 @@ class pixiv_infos:
         self.browser.find_element_by_xpath('//*[@id="LoginComponent"]/form/div[1]/div[2]/input').send_keys(password)
 
         #登录
-        self.browser.implicitly_wait(10)
+        self.browser.implicitly_wait(30)
         self.browser.find_element_by_xpath('//*[@id="LoginComponent"]/form/button').click()
 
         #等待至账号头像以及每日排行榜加载完成
@@ -63,7 +58,7 @@ class pixiv_infos:
         self.browser.find_element_by_xpath('//*[@id="js-mount-point-header"]/div/div/div[1]/div/div[3]/div[1]/div[5]/div[2]/div/div/div/div/ul/li[10]/button').click()
 
         #点击OK
-        self.browser.find_element_by_xpath('/html/body/div[8]/div/div/div/div[3]/div[2]/div/div/button[1]').click()
+        self.browser.find_element_by_xpath('/html/body/div[8]/div/div/div/div/div[3]/div[2]/div/div/button[1]').click()
 
 
     #关闭浏览器
@@ -107,29 +102,27 @@ class pixiv_infos:
 
         # 通过requests下载图片，使用css定位，分两次处理
         # 先下载第一张
-        time.sleep(1)  # 给予等待时间
         element = self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > figure > div > div.sc-1mz6e1e-1.QBVJO.gtm-medium-work-expanded-view > div.sc-1qpw8k9-0.yjBCb > a > img')
-        self.browser.execute_script('arguments[0].click();', element)  # 防止上一个元素覆盖下一个元素定位，出现错误
+        self.browser.execute_script('arguments[0].click();', element)
         png_url = self.browser.find_element_by_xpath('/html/body/div[3]/div/div[1]/div/img').get_attribute('src')
-        self.browser.find_element_by_xpath('/html/body/div[3]/div/div[1]/div/img').click()
-        time.sleep(1) # 给予等待时间
+        time.sleep(1)
         response = requests.get(png_url, headers=header)
         filename = dir_name + r'\\' + str(i+1) + '_' + dic['pic_name'] + '_' + dic['aut_name'] + '_' + '1' + '.png'
         with open(filename, 'wb') as f:
             f.write(response.content)
+        time.sleep(1)
 
         #下载第一张之后的图片
         for j in range(1, nums):
-            time.sleep(1)  # 给予等待时间
-            element = self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > figure > div > div:nth-child(%s) > div.sc-1qpw8k9-0.dEehPv > a > img' % str(j+2))
-            self.browser.execute_script('arguments[0].click();', element)  # 防止上一个元素覆盖下一个元素定位，出现错误
+            element = self.browser.find_element_by_xpath('/html/body/div[3]/div/div[2]/div/button[2]')
+            self.browser.execute_script('arguments[0].click();', element)
             png_url = self.browser.find_element_by_xpath('/html/body/div[3]/div/div[1]/div/img').get_attribute('src')
-            self.browser.find_element_by_xpath('/html/body/div[3]/div/div[1]/div/img').click()
-            time.sleep(1) # 给予等待时间
+            time.sleep(1)
             response = requests.get(png_url, headers=header)
             filename = dir_name + r'\\' + str(i+1) + '_' + dic['pic_name'] + '_' + dic['aut_name'] + '_' + str(j+1) + '.png'
             with open(filename, 'wb') as f:
                 f.write(response.content)
+            time.sleep(1)
 
 
 
@@ -139,7 +132,7 @@ class pixiv_infos:
         #获取伪装所需的referer
         dic['referer'] = self.browser.find_element_by_xpath('//*[@id="%s"]/div[2]/a' % str(i+1)).get_attribute('href')
         ele = self.browser.find_element_by_xpath('//*[@id="%s"]/div[2]/a' % str(i+1))
-        self.browser.execute_script('arguments[0].click();', ele) # 防止上一个元素覆盖下一个元素定位，出现错误
+        self.browser.execute_script('arguments[0].click();', ele)# 防止上一个元素覆盖下一个元素定位，出现错误
 
         # 跳转至新标签
         handle = self.browser.window_handles
@@ -151,25 +144,30 @@ class pixiv_infos:
         except:
             pass
 
-        # 等待至图片加载完成
-        self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > figure > div > div > div > a > img')))
-
-        # 获取作者名字与图片名字
-        # 存在图片没有名字的情况，若图片无名则命名为'nameless'
+        #检测图片是否为动图,若是则返回空字典
         try:
-            dic['pic_name'] = self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > figcaption > div > div > h1').text
+            self.browser.find_element_by_xpath('//*[@id="root"]/div[2]/div[2]/div/div[1]/main/section/div[1]/div/figure/div/div/canvas')
         except:
-            dic['pic_name'] = 'nameless'
-        dic['aut_name'] = self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > aside > section.sc-171jvz-1.sc-171jvz-3.f30yhg-3.labtod > h2 > div > div > a').text
-        dic['pic_name'] = re.sub(r'[/\'?:<>|*]*', '', dic['pic_name'])
-        dic['aut_name'] = re.sub(r'[/\'?:<>|*]*', '', dic['aut_name'])
-        return dic
+            # 等待至图片加载完成
+            self.wait.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > figure > div > div > div > a > img')))
 
+            # 获取作者名字与图片名字
+            # 存在图片没有名字的情况，若图片无名则命名为'nameless'
+            try:
+                dic['pic_name'] = self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > figcaption > div > div > h1').text
+            except:
+                dic['pic_name'] = 'nameless'
+            dic['aut_name'] = self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > aside > section.sc-171jvz-1.sc-171jvz-3.f30yhg-3.labtod > h2 > div > div > a').text
+            dic['pic_name'] = re.sub(r'[/\'"?:<>|*]*', '', dic['pic_name'])
+            dic['aut_name'] = re.sub(r'[/\'"?:<>|*]*', '', dic['aut_name'])
+            return dic
+        else:
+            dic = {}
+            return dic
 
 
     #找到每日排行榜中的图片并保存
     def find_daily(self, R_18, n):
-        #鉴于try语句过慢，缩短隐式等待时间
         self.browser.implicitly_wait(7)
 
         #打开每日排行榜
@@ -179,13 +177,13 @@ class pixiv_infos:
         if R_18:
             self.browser.find_element_by_xpath('//*[@id="wrapper"]/div[1]/div/div[2]/div/nav[1]/ul[2]/li[2]/a').click()
             # 创建今日文件夹
-            dir_name = r'D:\\R-18_' + time.strftime('%Y-%m-%d-%H') #文件保存的路径(请自行更改)
+            dir_name = r'E:\\Pictures\\pixiv_daily\\R-18_' + time.strftime('%Y-%m-%d-%H')
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
 
         else:
             # 创建今日文件夹
-            dir_name = r'D:\\' + time.strftime('%Y-%m-%d-%H') #文件保存的路径(请自行更改)
+            dir_name = r'E:\\Pictures\\pixiv_daily\\' + time.strftime('%Y-%m-%d-%H')
             if not os.path.exists(dir_name):
                 os.mkdir(dir_name)
 
@@ -201,21 +199,44 @@ class pixiv_infos:
 
         #进入图片的单独页面并保存
         for i in range(n):
-            #进入页面并获取相关信息
-            dic = self.get_name(i)
-
-            #检测是否含有多张图片
+            #检测该排名图片是否存在
             try:
-                self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > div.rsntqo-0.jEtDYL > div > div.ye57th-1.ghrZCB > button > div').text
+                self.browser.find_element_by_xpath('//*[@id="%s"]/div[2]/a' % str(i+1))
             except:
-                self.save_pic(dic, dir_name, i)
+                print('第 %s 张图片不存在' % str(i+1))
             else:
-                self.save_pic_mutli(dic, dir_name, i)
+                # 检测图片是否为昨日已下载图片
+                try:
+                    rank = self.browser.find_element_by_xpath('//*[@id="%s"]/div[1]/p/a/text()[2]' % str(i+1)).text
+                    rank = int(rank[1:])
+                except:
+                    rank = self.browser.find_element_by_xpath('//*[@id="%s"]/div[1]/p' % str(i+1)).text
+                    if rank != '首次登场':
+                        rank = int(rank[4:])
 
-            #关闭窗口并切换回原窗口
-            self.browser.close()
-            handle = self.browser.window_handles
-            self.browser.switch_to.window(handle[0])
+                if rank == '首次登场' or rank > 100:
+                    #进入页面并获取相关信息
+                    dic = self.get_name(i)
+
+                    #检测该图是否为动图
+                    if dic == {}:
+                        print('第 %s 张图片为动图，放弃下载' % str(i+1))
+                    else:
+                        #检测是否含有多张图片
+                        try:
+                            self.browser.find_element_by_css_selector('#root > div:nth-child(2) > div.sc-1nr368f-0.kCKAFN > div > div.sc-1nr368f-3.iHKGIi > main > section > div.sc-171jvz-0.ketmXG > div > div.rsntqo-0.jEtDYL > div > div.ye57th-1.ghrZCB > button > div').text
+                        except:
+                            self.save_pic(dic, dir_name, i)
+                        else:
+                            self.save_pic_mutli(dic, dir_name, i)
+
+                    #关闭窗口并切换回原窗口
+                    self.browser.close()
+                    handle = self.browser.window_handles
+                    self.browser.switch_to.window(handle[0])
+
+                else:
+                    print('第 %s 张图片昨日已下载' % str(i+1))
 
         print('爬取完毕！')
 
